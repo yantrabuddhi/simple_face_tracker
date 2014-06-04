@@ -17,22 +17,25 @@ import rospy
 
 import sys
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import Point
+from simple_face_tracker.msg import targets
+
 from cv_bridge import CvBridge, CvBridgeError
 
-from std_msgs.msg import String
-from std_msgs.msg import UInt16MultiArray
+#from std_msgs.msg import String
+#from std_msgs.msg import UInt16MultiArray
 class face_detect:
 	def __init__(self):
-		self.haarbase = '/opt/ros/hydro/share/OpenCV/'
+		self.haarbase = '/opt/ros/hydro/share/OpenCV/' #'/usr/share/opencv/'
 		self.faceCascade = cv.Load(self.haarbase + "haarcascades/haarcascade_frontalface_alt.xml")
-		self.pub = rospy.Publisher('facedetect', UInt16MultiArray, queue_size=10)
-		#cv.NamedWindow("Image window", 1)
+		self.pub = rospy.Publisher('facedetect', targets, queue_size=10)
+		cv.NamedWindow("ImageShow", 1)
 		self.bridge = CvBridge()
 		self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
 		
 	def callback(self,data):
 		try:
-			cv_image = self.bridge.imgmsg_to_cv(data,"bgr8")
+			cv_image = self.bridge.imgmsg_to_cv(data,"bgr8")#imgmsg_to_cv2
 		except CvBridgeError, e:
 			print e
 			
@@ -77,17 +80,19 @@ class face_detect:
 	 
 		# If faces are found
 		if faces:
-			payload = []
+			payload=targets()
 			for ((x, y, w, h), n) in faces:
 				# the input to cv.HaarDetectObjects was resized, so scale the
 				# bounding box of each face and convert it to two CvPoints
 				pt1 = (int(x * image_scale), int(y * image_scale))
 				pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
 				cv.Rectangle(image, pt1, pt2, cv.RGB(255, 0, 0), 5, 8, 0)
-				payload.append(x + w/2)
-				payload.append(y + h/2)
+				fpt=Point()
+				fpt.x=(float(x) + float(w)/2.0)/float(smallImage.width)
+				fpt.y=(float(y) + float(h)/2.0)/float(smallImage.height)
+				payload.positions.append(fpt)
 
-			msg = UInt16MultiArray(None, payload)
+			msg = payload
 
 			rospy.loginfo(msg)
 			self.pub.publish(msg)
